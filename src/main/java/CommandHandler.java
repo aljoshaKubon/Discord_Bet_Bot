@@ -3,31 +3,20 @@ import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 
+import java.util.List;
+
 public class CommandHandler {
 
     protected static void delegateCommand(MessageReceivedEvent event, String[] command){
-        switch(command[1].toLowerCase()){
-            case "help":
-                printHelp(event);
-                break;
-            case "leaderboard":
-                printLeaderboard(event);
-                break;
-            case "join":
-                join(event);
-                break;
-            case "leave":
-                leave(event);
-                break;
-            case "bet":
-                bet(event, command);
-                break;
-            case "set":
-                set(event, command);
-                break;
-            case "score":
-                score(event);
-                break;
+        switch (command[1].toLowerCase()) {
+            case "help" -> printHelp(event);
+            case "leaderboard" -> printLeaderboard(event);
+            case "join" -> join(event);
+            case "leave" -> leave(event);
+            case "bet" -> bet(event, command);
+            case "set" -> set(event, command);
+            case "score" -> score(event);
+            case "vote" -> vote(event);
         }
     }
 
@@ -38,7 +27,23 @@ public class CommandHandler {
     }
 
     private static void printLeaderboard(MessageReceivedEvent event){
-        System.out.println(event.getMember().getId());
+        StringBuilder msg = new StringBuilder();
+        Session session = HibernateUtils.getSessionFactory().openSession();
+
+        Transaction tx = session.beginTransaction();
+        try {
+            List<User> userList = session.createNativeQuery("SELECT * FROM USERS", User.class).list();
+            for (User user : userList) {
+                if (msg.length() > 0) {
+                    msg.append("\n");
+                }
+                msg.append(user.getName()).append(": ").append(user.getScore());
+            }
+            event.getChannel().sendMessage(msg.toString()).queue();
+            tx.commit();
+        }catch (Exception e){
+
+        }
     }
 
     private static void join(MessageReceivedEvent event){
@@ -73,7 +78,7 @@ public class CommandHandler {
 
         User user = getUserById(id);
         if(user != null){
-            Transaction transaction = null;
+            Transaction transaction;
             try(Session session = HibernateUtils.getSessionFactory().openSession()){
                 transaction = session.beginTransaction();
                 session.remove(user);
@@ -99,11 +104,14 @@ public class CommandHandler {
         String msg;
         User user = getUserById(id);
         if (user != null){
-            msg = "Dein Score beträgt: " + user.getScore();
+            msg = "Dein Score: " + user.getScore();
         }else{
             msg = "Du musst dich erst mit !join anmelden um deinen Score anzeigen zu lassen.";
         }
         event.getChannel().sendMessage(msg).queue();
+    }
+
+    private static void vote(MessageReceivedEvent event) {
     }
 
     private static User getUserById(long id){
@@ -119,5 +127,9 @@ public class CommandHandler {
             e.printStackTrace();
         }
         return null;
+    }
+
+    private static void sendMessageToChat(String msg){
+
     }
 }

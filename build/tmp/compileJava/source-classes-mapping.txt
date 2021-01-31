@@ -2,7 +2,7 @@ com/discordbot/teekanne/User.java
  com.discordbot.teekanne.User
 HibernateUtils.java
  HibernateUtils
-CommandHandler.java
- CommandHandler
 Main.java
  Main
+CommandHandler.java
+ CommandHandler
