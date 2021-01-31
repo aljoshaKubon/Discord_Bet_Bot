@@ -1,5 +1,7 @@
 import com.discordbot.teekanne.User;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
+import org.hibernate.Session;
+import org.hibernate.Transaction;
 
 public class CommandHandler {
 
@@ -43,13 +45,45 @@ public class CommandHandler {
         long id = event.getMember().getIdLong();
         String name = event.getAuthor().getName();
 
-        HibernateUtils.handleJoinCommand(id, name);
+        if(getUserById(id) == null){
+            User user = new User(id, name);
+            Transaction transaction = null;
+
+            try(Session session = HibernateUtils.getSessionFactory().openSession()){
+                transaction = session.beginTransaction();
+                session.save(user);
+                transaction.commit();
+            } catch (Exception e){
+                if (transaction != null){
+                    transaction.rollback();
+                }
+                e.printStackTrace();
+            }
+
+            //TODO: send message to user
+        }else{
+            System.out.println("User already exists.");
+            //TODO: Send message to user
+        }
+
     }
 
     private static void leave(MessageReceivedEvent event){
         long id = event.getMember().getIdLong();
 
-        HibernateUtils.handleLeaveCommand(id);
+        User user = getUserById(id);
+        if(user != null){
+            Transaction transaction = null;
+            try(Session session = HibernateUtils.getSessionFactory().openSession()){
+                transaction = session.beginTransaction();
+                session.remove(user);
+                transaction.commit();
+            } catch (Exception e){
+                e.printStackTrace();
+            }
+        }else{
+            //TODO: Send message to user
+        }
     }
 
     private static void bet(MessageReceivedEvent event, String[] command){
@@ -63,12 +97,27 @@ public class CommandHandler {
     private static void score(MessageReceivedEvent event){
         long id = event.getMember().getIdLong();
         String msg;
-        User user = HibernateUtils.getUserById(id);
+        User user = getUserById(id);
         if (user != null){
             msg = "Dein Score beträgt: " + user.getScore();
         }else{
             msg = "Du musst dich erst mit !join anmelden um deinen Score anzeigen zu lassen.";
         }
         event.getChannel().sendMessage(msg).queue();
+    }
+
+    private static User getUserById(long id){
+        User user;
+        try {
+            Session session = HibernateUtils.getSessionFactory().openSession();
+            user = session.get(User.class, id);
+
+            if(user != null){
+                return user;
+            }
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+        return null;
     }
 }

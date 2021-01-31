@@ -11,7 +11,7 @@ import net.dv8tion.jda.api.requests.GatewayIntent;
 import javax.security.auth.login.LoginException;
 
 public class Main extends ListenerAdapter {
-    private static final String token = "Nzk5MzM0MDM5MjY5NjcwOTky.YACD1Q.FUjC3jZlxVEgO8dJpJzUQr7h_HA";
+    private static final String token = "Nzk5MzM0MDM5MjY5NjcwOTky.YACD1Q.m2yNhm-Yhmb6fQTR-1nZvhXH0i0";
     private static JDA jda;
 
     public static void main(String[] args) throws LoginException, InterruptedException {
@@ -20,12 +20,6 @@ public class Main extends ListenerAdapter {
                 .setActivity(Activity.playing("Type !ping"))
                 .build();
         jda.awaitReady();
-    }
-
-    public void onGenericEvent(GenericEvent event){
-        if (event instanceof ReadyEvent){
-            HibernateUtils.createSessionFactory();
-        }
     }
 
     @Override

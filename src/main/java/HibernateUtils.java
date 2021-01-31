@@ -11,7 +11,7 @@ public class HibernateUtils {
     private static StandardServiceRegistry registry;
     private static SessionFactory sessionFactory;
 
-    protected static void createSessionFactory(){
+    protected static SessionFactory getSessionFactory(){
         if (sessionFactory == null){
             try{
                 registry = new StandardServiceRegistryBuilder().configure().build();
@@ -28,61 +28,7 @@ public class HibernateUtils {
                 }
             }
         }
-    }
-
-    protected static void handleJoinCommand(long id, String name){
-        if(getUserById(id) == null){
-            User user = new User(id, name);
-            Transaction transaction = null;
-
-            try(Session session = sessionFactory.openSession()){
-                transaction = session.beginTransaction();
-                session.save(user);
-                transaction.commit();
-            } catch (Exception e){
-                if (transaction != null){
-                    transaction.rollback();
-                }
-                e.printStackTrace();
-            }
-
-            //TODO: send message to user
-        }else{
-            System.out.println("User already exists.");
-            //TODO: Send message to user
-        }
-
-    }
-
-    protected static void handleLeaveCommand(long id) {
-        User user = getUserById(id);
-        if(user != null){
-            Transaction transaction = null;
-            try(Session session = sessionFactory.openSession()){
-                transaction = session.beginTransaction();
-                session.remove(user);
-                transaction.commit();
-            } catch (Exception e){
-                e.printStackTrace();
-            }
-        }else{
-            //TODO: Send message to user
-        }
-    }
-
-    protected static User getUserById(long id){
-        User user;
-        try {
-            Session session = sessionFactory.openSession();
-            user = session.get(User.class, id);
-
-            if(user != null){
-                return user;
-            }
-        } catch (Exception e){
-            e.printStackTrace();
-        }
-        return null;
+        return sessionFactory;
     }
 
     private static void shutdown(){
