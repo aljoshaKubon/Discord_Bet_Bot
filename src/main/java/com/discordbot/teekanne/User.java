@@ -11,9 +11,6 @@ public class User {
     @Column(name = "UserId")
     private long _id;
 
-    @Column(name = "Name")
-    private String _name;
-
     @Column(name = "Score")
     private int _score;
 
@@ -22,7 +19,6 @@ public class User {
 
     public User(long userId, String name){
         this._id = userId;
-        this._name = name;
         this._score = 100;
     }
 
@@ -32,14 +28,6 @@ public class User {
 
     public void setId(long id) {
         this._id = id;
-    }
-
-    public String getName(){
-        return this._name;
-    }
-
-    public void setName(String name){
-        this._name = name;
     }
 
     public int getScore(){

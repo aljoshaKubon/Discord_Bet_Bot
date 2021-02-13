@@ -1,14 +1,19 @@
 import com.discordbot.teekanne.User;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 public class CommandHandler {
 
     protected static void delegateCommand(MessageReceivedEvent event, String[] command){
-        switch (command[1].toLowerCase()) {
+        System.out.println(Arrays.toString(command));
+        switch (command[0].toLowerCase()) {
             case "help" -> printHelp(event);
             case "leaderboard" -> printLeaderboard(event);
             case "join" -> join(event);
@@ -37,57 +42,65 @@ public class CommandHandler {
                 if (msg.length() > 0) {
                     msg.append("\n");
                 }
-                msg.append(user.getName()).append(": ").append(user.getScore());
+                msg.append(getNicknameById(event, user.getId())).append(": ").append(user.getScore());
             }
             event.getChannel().sendMessage(msg.toString()).queue();
             tx.commit();
         }catch (Exception e){
-
+            e.printStackTrace();
         }
     }
 
     private static void join(MessageReceivedEvent event){
-        long id = event.getMember().getIdLong();
+        long id = Objects.requireNonNull(event.getMember()).getIdLong();
+        User user = getUserById(id);
         String name = event.getAuthor().getName();
+        String msg;
 
-        if(getUserById(id) == null){
-            User user = new User(id, name);
+        if(user == null){
+            user = new User(id, name);
             Transaction transaction = null;
 
             try(Session session = HibernateUtils.getSessionFactory().openSession()){
                 transaction = session.beginTransaction();
                 session.save(user);
                 transaction.commit();
+                msg = name + " du hast dich erfolgreich registriert.";
+                event.getChannel().sendMessage(msg).queue();
             } catch (Exception e){
                 if (transaction != null){
                     transaction.rollback();
+                    msg = "Es ist ein Fehler aufgetreten, versuchen sie es erneut oder melden sie sich bei dem Admin.";
+                    event.getChannel().sendMessage(msg).queue();
                 }
                 e.printStackTrace();
             }
-
-            //TODO: send message to user
         }else{
-            System.out.println("User already exists.");
-            //TODO: Send message to user
+            msg = name + " du hast dich bereits registriert.";
+            event.getChannel().sendMessage(msg).queue();
         }
-
     }
 
     private static void leave(MessageReceivedEvent event){
-        long id = event.getMember().getIdLong();
-
+        long id = Objects.requireNonNull(event.getMember()).getIdLong();
         User user = getUserById(id);
+        String name = event.getAuthor().getName();
+        String msg;
+
         if(user != null){
             Transaction transaction;
             try(Session session = HibernateUtils.getSessionFactory().openSession()){
                 transaction = session.beginTransaction();
                 session.remove(user);
                 transaction.commit();
+                msg = name + " du bist erfolgreich ausgetreten.";
+                event.getChannel().sendMessage(msg).queue();
             } catch (Exception e){
                 e.printStackTrace();
             }
         }else{
-            //TODO: Send message to user
+            msg = name + " du befinden sich nicht in dem System.";
+            event.getChannel().sendMessage(msg).queue();
         }
     }
 
@@ -96,17 +109,48 @@ public class CommandHandler {
     }
 
     private static void set(MessageReceivedEvent event, String[] command){
-        //Admin command to set the score of a player or himself
+        Role role = event.getGuild().getRoleById(810130877757128704L);
+        User user;
+        if (Objects.requireNonNull(event.getMember()).getRoles().contains(role)) {
+            List<Member> members = event.getGuild().getMembersByEffectiveName(command[1], true);
+            if (members.size() > 0){
+                if(members.size() == 1){
+                    user = getUserById(members.get(0).getIdLong());
+                    if(user != null){
+                        Transaction transaction;
+                        user.setScore(Integer.parseInt(command[2]));
+                        try(Session session = HibernateUtils.getSessionFactory().openSession()){
+                            transaction = session.beginTransaction();
+                            session.update(user);
+                            transaction.commit();
+                            event.getChannel().sendMessage("Der score von " + members.get(0).getUser().getName() + " wurde auf " + command[2] + " gesetzt.").queue();
+                        }catch(Exception e){
+                            e.printStackTrace();
+                        }
+                    }else{
+                        event.getChannel().sendMessage("Dieses Mitglied ist nicht registriert.").queue();
+                    }
+                }else{
+                    event.getChannel().sendMessage("Users: " + members.toString()).queue();
+                }
+            }else {
+                event.getChannel().sendMessage("Mitglied konnte nicht gefunden werden.").queue();
+            }
+        }else{
+            event.getChannel().sendMessage("Du hast nicht die erforderlichen Rechte für diese Operation.").queue();
+        }
     }
 
     private static void score(MessageReceivedEvent event){
-        long id = event.getMember().getIdLong();
+        long id = Objects.requireNonNull(event.getMember()).getIdLong();
         String msg;
+        String name = event.getAuthor().getName();
         User user = getUserById(id);
+
         if (user != null){
             msg = "Dein Score: " + user.getScore();
         }else{
-            msg = "Du musst dich erst mit !join anmelden um deinen Score anzeigen zu lassen.";
+            msg = name + " du musst dich erst mit !join anmelden um deinen Score anzeigen zu lassen.";
         }
         event.getChannel().sendMessage(msg).queue();
     }
@@ -129,7 +173,7 @@ public class CommandHandler {
         return null;
     }
 
-    private static void sendMessageToChat(String msg){
-
+    private static String getNicknameById(MessageReceivedEvent event, long id){
+        return Objects.requireNonNull(event.getGuild().getMemberById(id)).getNickname();
     }
 }
