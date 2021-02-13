@@ -26,10 +26,6 @@ public class User {
         return this._id;
     }
 
-    public void setId(long id) {
-        this._id = id;
-    }
-
     public int getScore(){
         return this._score;
     }
