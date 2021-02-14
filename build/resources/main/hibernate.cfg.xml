@@ -23,6 +23,7 @@
 
         <!-- Annotated entity classes -->
         <mapping class="com.discordbot.teekanne.User"/>
+        <mapping class="com.discordbot.teekanne.Vote"/>
 
     </session-factory>
 </hibernate-configuration>

@@ -1,42 +1,48 @@
 package com.discordbot.teekanne;
 
-import javax.persistence.*;
+import java.util.ArrayList;
+import java.util.List;
 
-@Entity
-@Table(name="Votes")
 public class Vote {
+    private static boolean active = false;
+    private static boolean running = false;
+    private static List<Bet> betList = new ArrayList<Bet>();
 
-    @Id
-    @GeneratedValue
-    @Column(name="VoteId")
-    private long _id;
-
-    @Column(name="Title")
-    private String _title;
-
-    @Column(name="active")
-    private boolean _active;
-
-    public Vote(){
+    public static void start(){
+        if(!active){
+            active = true;
+            running = true;
+        }
     }
 
-    public Vote(String title){
-        this._title = title;
+    public static void stop(){
+        if(running){
+            running = false;
+        }
     }
 
-    protected long getId(){
-        return this._id;
+    public static void end(){
+        if(active && !running){
+            active = false;
+        }
     }
 
-    protected String getTitle(){
-        return this._title;
+    public static void addBet(Bet bet){
+        if(active && running) {
+            betList.add(bet);
+            System.out.println(betList.toString());
+        }
     }
 
-    protected void setActive(boolean active){
-        this._active = active;
+    public static boolean isActive(){
+        return active;
     }
 
-    protected boolean isActive(){
-        return this._active;
+    public static boolean isRunning(){
+        return running;
+    }
+
+    public static List<Bet> getBetList(){
+        return betList;
     }
 }

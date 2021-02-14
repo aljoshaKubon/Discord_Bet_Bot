@@ -17,7 +17,7 @@ public class User {
     public User(){
     }
 
-    public User(long userId, String name){
+    public User(long userId){
         this._id = userId;
         this._score = 100;
     }

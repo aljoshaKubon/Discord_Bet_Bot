@@ -1,4 +1,6 @@
+import com.discordbot.teekanne.Bet;
 import com.discordbot.teekanne.User;
+import com.discordbot.teekanne.Vote;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
@@ -18,10 +20,10 @@ public class CommandHandler {
             case "leaderboard" -> printLeaderboard(event);
             case "join" -> join(event);
             case "leave" -> leave(event);
+            case "vote" -> vote(event, command);
             case "bet" -> bet(event, command);
             case "set" -> set(event, command);
             case "score" -> score(event);
-            case "vote" -> vote(event);
         }
     }
 
@@ -58,7 +60,7 @@ public class CommandHandler {
         String msg;
 
         if(user == null){
-            user = new User(id, name);
+            user = new User(id);
             Transaction transaction = null;
 
             try(Session session = HibernateUtils.getSessionFactory().openSession()){
@@ -70,9 +72,8 @@ public class CommandHandler {
             } catch (Exception e){
                 if (transaction != null){
                     transaction.rollback();
-                    msg = "Es ist ein Fehler aufgetreten, versuchen sie es erneut oder melden sie sich bei dem Admin.";
-                    event.getChannel().sendMessage(msg).queue();
                 }
+                event.getChannel().sendMessage("Es ist ein Fehler aufgetreten, versuchen sie es erneut oder melden sie sich bei dem Admin.").queue();
                 e.printStackTrace();
             }
         }else{
@@ -85,37 +86,102 @@ public class CommandHandler {
         long id = Objects.requireNonNull(event.getMember()).getIdLong();
         User user = getUserById(id);
         String name = event.getAuthor().getName();
-        String msg;
 
         if(user != null){
-            Transaction transaction;
+            Transaction transaction = null;
             try(Session session = HibernateUtils.getSessionFactory().openSession()){
                 transaction = session.beginTransaction();
                 session.remove(user);
                 transaction.commit();
-                msg = name + " du bist erfolgreich ausgetreten.";
-                event.getChannel().sendMessage(msg).queue();
+                event.getChannel().sendMessage(name + " du bist erfolgreich ausgetreten.").queue();
             } catch (Exception e){
                 e.printStackTrace();
+                if(transaction != null) {
+                    transaction.rollback();
+                }
+                event.getChannel().sendMessage("Es ist ein Fehler aufgetreten, versuchen sie es erneut oder melden sie sich bei dem Admin.").queue();
             }
         }else{
-            msg = name + " du befinden sich nicht in dem System.";
+            event.getChannel().sendMessage(name + " du befinden sich nicht in dem System.").queue();
+        }
+    }
+
+    private static void vote(MessageReceivedEvent event, String[] command) {
+        if(isAdmin(event)){
+            String msg;
+            switch (command[1]) {
+                case "start" -> {
+                    if(!Vote.isActive()){
+                        Vote.start();
+                        msg = "Vote wurde erstellt es kann nun gewettet werden.";
+                    }else{
+                        msg = "Es ist schon ein Vote aktiv.";
+                    }
+                }
+                case "stop" -> {
+                    if(Vote.isActive()){
+                        if(Vote.isRunning()){
+                            Vote.stop();
+                            msg = "Vote wurde gestoppt, es kann nicht mehr gewettet werden.";
+                        }else{
+                            msg = "Vote wurde schon gestoppt.";
+                        }
+
+                    }else{
+                        msg = "Momentan gibt es keinen Vote der gestoppt werden kann.";
+                    }
+                }
+                case "end" -> {
+                    if(Vote.isActive()){
+                        if(!Vote.isRunning()){
+                            Vote.end();
+                            msg = "Vote wurde beendet, Gewinn wurde ausgegeben.";
+                        }else{
+                            msg = "Vote muss vorher gestoppt werden.";
+                        }
+                    }else{
+                        msg = "Momentan gibt es keinen Vote der beendet werden kann.";
+                    }
+
+                }
+                default -> msg = "Den Befehl " + command[1] + " gibt es nicht.";
+            }
             event.getChannel().sendMessage(msg).queue();
         }
     }
 
     private static void bet(MessageReceivedEvent event, String[] command){
-        //bet command for
+        User user = getUserById(Objects.requireNonNull(event.getMember()).getIdLong());
+        String msg;
+
+        if(user != null){
+            if(Vote.isActive()){
+                if(Vote.isRunning()){
+                    if(user.getScore() >= Long.parseLong(command[2])){
+                        Bet bet = new Bet(user, Boolean.getBoolean(command[1]), Long.parseLong(command[2]));
+                        Vote.addBet(bet);
+                        msg = "Deine Wette wurde aufgenommen.";
+                    }else{
+                        msg = "Du hast nicht so viele Punkte wie du verwetten willst.";
+                    }
+                }else{
+                    msg = "Der Vote wurde schon gestoppt, es kann nicht mehr gewettet werden.";
+                }
+            }else{
+                msg = "Zurzeit gibt es keinen Vote auf den du wetten kannst.";
+            }
+        }else{
+            msg = "Du " + event.getAuthor().getName() + " musst dich erst mit !join registrieren um an Votes teilzunehmen.";
+        }
+        event.getChannel().sendMessage(msg).queue();
     }
 
     private static void set(MessageReceivedEvent event, String[] command){
-        Role role = event.getGuild().getRoleById(810130877757128704L);
-        User user;
-        if (Objects.requireNonNull(event.getMember()).getRoles().contains(role)) {
+        if (isAdmin(event)) {
             List<Member> members = event.getGuild().getMembersByEffectiveName(command[1], true);
             if (members.size() > 0){
                 if(members.size() == 1){
-                    user = getUserById(members.get(0).getIdLong());
+                    User user = getUserById(members.get(0).getIdLong());
                     if(user != null){
                         Transaction transaction;
                         user.setScore(Integer.parseInt(command[2]));
@@ -155,22 +221,20 @@ public class CommandHandler {
         event.getChannel().sendMessage(msg).queue();
     }
 
-    private static void vote(MessageReceivedEvent event) {
-    }
-
     private static User getUserById(long id){
-        User user;
+        User user = null;
         try {
             Session session = HibernateUtils.getSessionFactory().openSession();
             user = session.get(User.class, id);
-
-            if(user != null){
-                return user;
-            }
         } catch (Exception e){
             e.printStackTrace();
         }
-        return null;
+        return user;
+    }
+
+    private static boolean isAdmin(MessageReceivedEvent event){
+        Role role = event.getGuild().getRoleById(810130877757128704L);
+        return Objects.requireNonNull(event.getMember()).getRoles().contains(role);
     }
 
     private static String getNicknameById(MessageReceivedEvent event, long id){
