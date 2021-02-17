@@ -1,6 +1,5 @@
 import com.discordbot.teekanne.Bet;
 import com.discordbot.teekanne.User;
-import com.discordbot.teekanne.Vote;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
@@ -14,7 +13,6 @@ import java.util.Objects;
 public class CommandHandler {
 
     protected static void delegateCommand(MessageReceivedEvent event, String[] command){
-        System.out.println(Arrays.toString(command));
         switch (command[0].toLowerCase()) {
             case "help" -> printHelp(event);
             case "leaderboard" -> printLeaderboard(event);
@@ -39,12 +37,12 @@ public class CommandHandler {
 
         Transaction tx = session.beginTransaction();
         try {
-            List<User> userList = session.createNativeQuery("SELECT * FROM USERS", User.class).list();
+            List<User> userList = session.createNativeQuery("SELECT * FROM USERS ORDER BY SCORE DESC", User.class).list();
             for (User user : userList) {
                 if (msg.length() > 0) {
                     msg.append("\n");
                 }
-                msg.append(getNicknameById(event, user.getId())).append(": ").append(user.getScore());
+                msg.append(user.getScore()).append(" - ").append(getNicknameById(event, user.getId()));
             }
             event.getChannel().sendMessage(msg.toString()).queue();
             tx.commit();
@@ -111,17 +109,17 @@ public class CommandHandler {
             String msg;
             switch (command[1]) {
                 case "start" -> {
-                    if(!Vote.isActive()){
-                        Vote.start();
+                    if(!VoteHandler.isActive()){
+                        VoteHandler.start();
                         msg = "Vote wurde erstellt es kann nun gewettet werden.";
                     }else{
                         msg = "Es ist schon ein Vote aktiv.";
                     }
                 }
                 case "stop" -> {
-                    if(Vote.isActive()){
-                        if(Vote.isRunning()){
-                            Vote.stop();
+                    if(VoteHandler.isActive()){
+                        if(VoteHandler.isRunning()){
+                            VoteHandler.stop();
                             msg = "Vote wurde gestoppt, es kann nicht mehr gewettet werden.";
                         }else{
                             msg = "Vote wurde schon gestoppt.";
@@ -132,13 +130,9 @@ public class CommandHandler {
                     }
                 }
                 case "end" -> {
-                    if(Vote.isActive()){
-                        if(!Vote.isRunning()){
-                            Vote.end();
-                            msg = "Vote wurde beendet, Gewinn wurde ausgegeben.";
-                        }else{
-                            msg = "Vote muss vorher gestoppt werden.";
-                        }
+                    if(VoteHandler.isActive()){
+                        VoteHandler.end(Boolean.parseBoolean(command[2]));
+                        msg = "Vote wurde beendet, Gewinn wurde ausgegeben.";
                     }else{
                         msg = "Momentan gibt es keinen Vote der beendet werden kann.";
                     }
@@ -155,14 +149,29 @@ public class CommandHandler {
         String msg;
 
         if(user != null){
-            if(Vote.isActive()){
-                if(Vote.isRunning()){
-                    if(user.getScore() >= Long.parseLong(command[2])){
-                        Bet bet = new Bet(user, Boolean.getBoolean(command[1]), Long.parseLong(command[2]));
-                        Vote.addBet(bet);
-                        msg = "Deine Wette wurde aufgenommen.";
+            if(VoteHandler.isActive()){
+                if(VoteHandler.isRunning()){
+                    try{
+                        if(Long.parseLong(command[2]) > 0){
+                        if(user.getScore() >= Long.parseLong(command[2])){
+                            if(command[1].equals("true")){
+                                Bet bet = new Bet(user, true, Long.parseLong(command[2]));
+                                VoteHandler.addBet(bet);
+                                msg = "Deine Wette wurde aufgenommen.";
+                            }else if(command[1].equals("false")) {
+                                Bet bet = new Bet(user, false, Long.parseLong(command[2]));
+                                VoteHandler.addBet(bet);
+                                msg = "Deine Wette wurde aufgenommen.";
+                            }else{
+                                msg = "Konnte die Eingabe '" + command[1] + "' nicht erkennen.";
+                            }
+                        }else{
+                            msg = "Du hast nicht so viele Punkte wie du verwetten willst.";
+                        }
                     }else{
-                        msg = "Du hast nicht so viele Punkte wie du verwetten willst.";
+                        msg = "Bitte gib keine Zahlen kleiner eins an.";
+                    }}catch(Exception e){
+                        msg = "Konnte die Zahl '" + command[2] + "' nicht erkennen.";
                     }
                 }else{
                     msg = "Der Vote wurde schon gestoppt, es kann nicht mehr gewettet werden.";
@@ -184,7 +193,7 @@ public class CommandHandler {
                     User user = getUserById(members.get(0).getIdLong());
                     if(user != null){
                         Transaction transaction;
-                        user.setScore(Integer.parseInt(command[2]));
+                        user.setScore(Long.parseLong(command[2]));
                         try(Session session = HibernateUtils.getSessionFactory().openSession()){
                             transaction = session.beginTransaction();
                             session.update(user);
@@ -203,7 +212,7 @@ public class CommandHandler {
                 event.getChannel().sendMessage("Mitglied konnte nicht gefunden werden.").queue();
             }
         }else{
-            event.getChannel().sendMessage("Du hast nicht die erforderlichen Rechte für diese Operation.").queue();
+            event.getChannel().sendMessage("Du hast nicht die erforderlichen Rechte um diesen Befehl zu nutzen.").queue();
         }
     }
 
@@ -238,6 +247,6 @@ public class CommandHandler {
     }
 
     private static String getNicknameById(MessageReceivedEvent event, long id){
-        return Objects.requireNonNull(event.getGuild().getMemberById(id)).getNickname();
+        return Objects.requireNonNull(event.getGuild().getMemberById(id).getUser().getName());
     }
 }

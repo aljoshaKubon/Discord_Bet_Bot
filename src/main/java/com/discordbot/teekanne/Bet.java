@@ -4,6 +4,7 @@ public class Bet {
     private final User _user;
     private boolean _choice;
     private long _points;
+    private double _contributionInPercent;
 
     public Bet(User user, boolean choice, long points){
         this._user = user;
@@ -29,5 +30,13 @@ public class Bet {
 
     public long getPoints(){
         return this._points;
+    }
+
+    public void setContributionInPercent(double contributionInPercent){
+        this._contributionInPercent = contributionInPercent;
+    }
+
+    public double getContributionInPercent(){
+        return this._contributionInPercent;
     }
 }

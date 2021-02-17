@@ -12,7 +12,7 @@ public class User {
     private long _id;
 
     @Column(name = "Score")
-    private int _score;
+    private long _score;
 
     public User(){
     }
@@ -26,11 +26,11 @@ public class User {
         return this._id;
     }
 
-    public int getScore(){
+    public long getScore(){
         return this._score;
     }
 
-    public void setScore(int score){
+    public void setScore(long score){
         this._score = score;
     }
 }

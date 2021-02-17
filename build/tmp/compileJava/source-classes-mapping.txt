@@ -1,12 +1,12 @@
+VoteHandler.java
+ VoteHandler
 HibernateUtils.java
  HibernateUtils
 com/discordbot/teekanne/Bet.java
  com.discordbot.teekanne.Bet
-Main.java
- Main
 com/discordbot/teekanne/User.java
  com.discordbot.teekanne.User
-com/discordbot/teekanne/Vote.java
- com.discordbot.teekanne.Vote
+Main.java
+ Main
 CommandHandler.java
  CommandHandler
